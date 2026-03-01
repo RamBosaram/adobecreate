@@ -1,0 +1,83 @@
+---------------------------- PROCESS STARTED (21075) for package com.creysvpn.app ----------------------------
+2026-03-01 17:16:45.087 21075-21075 AndroidRuntime          com.creysvpn.app                     D  Shutting down VM
+2026-03-01 17:16:45.088 21075-21075 AndroidRuntime          com.creysvpn.app                     E  FATAL EXCEPTION: main (Ask Gemini)
+                                                                                                    Process: com.creysvpn.app, PID: 21075
+                                                                                                    java.lang.RuntimeException: Unable to create service com.creysvpn.app.OverlayService: java.lang.SecurityException: com.creysvpn.app: One of RECEIVER_EXPORTED or RECEIVER_NOT_EXPORTED should be specified when a receiver isn't being registered exclusively for system broadcasts
+                                                                                                    	at android.app.ActivityThread.handleCreateService(ActivityThread.java:5690)
+                                                                                                    	at android.app.ActivityThread.-$$Nest$mhandleCreateService(Unknown Source:0)
+                                                                                                    	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2862)
+                                                                                                    	at android.os.Handler.dispatchMessage(Handler.java:115)
+                                                                                                    	at android.os.Looper.loopOnce(Looper.java:298)
+                                                                                                    	at android.os.Looper.loop(Looper.java:408)
+                                                                                                    	at android.app.ActivityThread.main(ActivityThread.java:9964)
+                                                                                                    	at java.lang.reflect.Method.invoke(Native Method)
+                                                                                                    	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:613)
+                                                                                                    	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1074)
+                                                                                                    Caused by: java.lang.SecurityException: com.creysvpn.app: One of RECEIVER_EXPORTED or RECEIVER_NOT_EXPORTED should be specified when a receiver isn't being registered exclusively for system broadcasts
+                                                                                                    	at android.os.Parcel.createExceptionOrNull(Parcel.java:3369)
+                                                                                                    	at android.os.Parcel.createException(Parcel.java:3353)
+                                                                                                    	at android.os.Parcel.readException(Parcel.java:3336)
+                                                                                                    	at android.os.Parcel.readException(Parcel.java:3278)
+                                                                                                    	at android.app.IActivityManager$Stub$Proxy.registerReceiverWithFeature(IActivityManager.java:6156)
+                                                                                                    	at android.app.ContextImpl.registerReceiverInternal(ContextImpl.java:1951)
+                                                                                                    	at android.app.ContextImpl.registerReceiver(ContextImpl.java:1876)
+                                                                                                    	at android.app.ContextImpl.registerReceiver(ContextImpl.java:1864)
+                                                                                                    	at android.content.ContextWrapper.registerReceiver(ContextWrapper.java:788)
+                                                                                                    	at com.creysvpn.app.OverlayService.onCreate(OverlayService.java:118)
+                                                                                                    	at android.app.ActivityThread.handleCreateService(ActivityThread.java:5660)
+                                                                                                    	... 9 more
+                                                                                                    Caused by: android.os.RemoteException: Remote stack trace:
+                                                                                                    	at com.android.server.am.BroadcastController.registerReceiverWithFeatureTraced(BroadcastController.java:493)
+                                                                                                    	at com.android.server.am.BroadcastController.registerReceiverWithFeature(BroadcastController.java:262)
+                                                                                                    	at com.android.server.am.ActivityManagerService.registerReceiverWithFeature(ActivityManagerService.java:15618)
+                                                                                                    	at android.app.IActivityManager$Stub.onTransact(IActivityManager.java:2795)
+                                                                                                    	at com.android.server.am.ActivityManagerService.onTransact(ActivityManagerService.java:3000)
+                                                                                                    
+---------------------------- PROCESS ENDED (21075) for package com.creysvpn.app ----------------------------
+---------------------------- PROCESS STARTED (21471) for package com.creysvpn.app ----------------------------
+2026-03-01 17:16:45.494 21471-21471 AndroidRuntime          com.creysvpn.app                     D  Shutting down VM
+2026-03-01 17:16:45.495 21471-21471 AndroidRuntime          com.creysvpn.app                     E  FATAL EXCEPTION: main (Ask Gemini)
+                                                                                                    Process: com.creysvpn.app, PID: 21471
+                                                                                                    java.lang.RuntimeException: Unable to create service com.creysvpn.app.OverlayService: java.lang.SecurityException: com.creysvpn.app: One of RECEIVER_EXPORTED or RECEIVER_NOT_EXPORTED should be specified when a receiver isn't being registered exclusively for system broadcasts
+                                                                                                    	at android.app.ActivityThread.handleCreateService(ActivityThread.java:5690)
+                                                                                                    	at android.app.ActivityThread.-$$Nest$mhandleCreateService(Unknown Source:0)
+                                                                                                    	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2862)
+                                                                                                    	at android.os.Handler.dispatchMessage(Handler.java:115)
+                                                                                                    	at android.os.Looper.loopOnce(Looper.java:298)
+                                                                                                    	at android.os.Looper.loop(Looper.java:408)
+                                                                                                    	at android.app.ActivityThread.main(ActivityThread.java:9964)
+                                                                                                    	at java.lang.reflect.Method.invoke(Native Method)
+                                                                                                    	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:613)
+                                                                                                    	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1074)
+                                                                                                    Caused by: java.lang.SecurityException: com.creysvpn.app: One of RECEIVER_EXPORTED or RECEIVER_NOT_EXPORTED should be specified when a receiver isn't being registered exclusively for system broadcasts
+                                                                                                    	at android.os.Parcel.createExceptionOrNull(Parcel.java:3369)
+                                                                                                    	at android.os.Parcel.createException(Parcel.java:3353)
+                                                                                                    	at android.os.Parcel.readException(Parcel.java:3336)
+                                                                                                    	at android.os.Parcel.readException(Parcel.java:3278)
+                                                                                                    	at android.app.IActivityManager$Stub$Proxy.registerReceiverWithFeature(IActivityManager.java:6156)
+                                                                                                    	at android.app.ContextImpl.registerReceiverInternal(ContextImpl.java:1951)
+                                                                                                    	at android.app.ContextImpl.registerReceiver(ContextImpl.java:1876)
+                                                                                                    	at android.app.ContextImpl.registerReceiver(ContextImpl.java:1864)
+                                                                                                    	at android.content.ContextWrapper.registerReceiver(ContextWrapper.java:788)
+                                                                                                    	at com.creysvpn.app.OverlayService.onCreate(OverlayService.java:118)
+                                                                                                    	at android.app.ActivityThread.handleCreateService(ActivityThread.java:5660)
+                                                                                                    	... 9 more
+---------------------------- PROCESS ENDED (21471) for package com.creysvpn.app ----------------------------
+2026-03-01 17:17:09.256 22665-22665 AndroidRuntime          app_process                          D  >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+2026-03-01 17:17:09.270 22665-22665 AndroidRuntime          app_process                          I  Using default boot image
+2026-03-01 17:17:09.270 22665-22665 AndroidRuntime          app_process                          I  Leaving lock profiling enabled
+2026-03-01 17:17:09.454 22665-22665 AndroidRuntime          app_process                          D  Calling main entry com.android.tools.screensharing.Main
+2026-03-01 17:17:12.108 22665-22665 AndroidRuntime          app_process                          I  VM exiting with result code 11.
+2026-03-01 17:17:12.890 22724-22724 AndroidRuntime          app_process                          D  >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+2026-03-01 17:17:12.895 22724-22724 AndroidRuntime          app_process                          I  Using default boot image
+2026-03-01 17:17:12.895 22724-22724 AndroidRuntime          app_process                          I  Leaving lock profiling enabled
+2026-03-01 17:17:13.024 22724-22724 AndroidRuntime          app_process                          D  Calling main entry com.android.tools.screensharing.Main
+2026-03-01 17:17:19.623 22724-22724 AndroidRuntime          app_process                          I  VM exiting with result code 0.
+2026-03-01 17:17:19.994 22817-22817 AndroidRuntime          app_process                          D  >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+2026-03-01 17:17:19.999 22817-22817 AndroidRuntime          app_process                          I  Using default boot image
+2026-03-01 17:17:19.999 22817-22817 AndroidRuntime          app_process                          I  Leaving lock profiling enabled
+2026-03-01 17:17:20.126 22817-22817 AndroidRuntime          app_process                          D  Calling main entry com.android.tools.screensharing.Main
+2026-03-01 17:17:26.987 22895-22895 AndroidRuntime          app_process                          D  >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+2026-03-01 17:17:26.992 22895-22895 AndroidRuntime          app_process                          I  Using default boot image
+2026-03-01 17:17:26.992 22895-22895 AndroidRuntime          app_process                          I  Leaving lock profiling enabled
+2026-03-01 17:17:27.122 22895-22895 AndroidRuntime          app_process                          D  Calling main entry com.android.tools.screensharing.Main

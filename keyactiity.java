@@ -1,0 +1,197 @@
+package com.creysvpn.app;
+
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.os.Bundle;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import androidx.appcompat.app.AppCompatActivity;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
+public class KeyActivity extends AppCompatActivity {
+
+    private static final String PREFS = "creysvpn_prefs";
+    private static final String KEY_ACTIVATED = "key_activated";
+    private static final String KEY_EXPIRES = "key_expires";
+
+    private EditText etKey;
+    private Button btnActivate;
+    private TextView tvStatus;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        if (isKeyValid()) {
+            goToMain();
+            return;
+        }
+
+        setContentView(R.layout.activity_key);
+
+        etKey = findViewById(R.id.etKey);
+        btnActivate = findViewById(R.id.btnActivate);
+        tvStatus = findViewById(R.id.tvStatus);
+
+        btnActivate.setOnClickListener(v -> {
+            String key = etKey.getText().toString().trim().toUpperCase();
+            if (key.isEmpty()) {
+                tvStatus.setText("Введи ключ");
+                return;
+            }
+            activateKey(key);
+        });
+    }
+
+    private void activateKey(String key) {
+        btnActivate.setEnabled(false);
+        tvStatus.setText("Проверка...");
+
+        String deviceId = fetchDeviceId();
+
+        DatabaseReference ref = FirebaseDatabase.getInstance()
+                .getReference("keys").child(key);
+
+        ref.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot snap) {
+                if (!snap.exists()) {
+                    tvStatus.setText("Ключ не найден");
+                    btnActivate.setEnabled(true);
+                    return;
+                }
+
+                Boolean activated = snap.child("activated").getValue(Boolean.class);
+                Object boundDeviceRaw = snap.child("device_id").getValue();
+                String boundDevice = (boundDeviceRaw != null && !boundDeviceRaw.toString().isEmpty())
+                        ? boundDeviceRaw.toString() : null;
+
+                // Читаем type (универсально: может быть String или Long)
+                Object typeValue = snap.child("type").getValue();
+                Boolean isAdmin = snap.child("admin").getValue(Boolean.class);
+
+                // Ключ занят другим устройством
+                if (Boolean.TRUE.equals(activated) && boundDevice != null && !boundDevice.equals(deviceId)) {
+                    tvStatus.setText("Ключ уже использован");
+                    btnActivate.setEnabled(true);
+                    return;
+                }
+
+                // Ключ уже активирован на этом устройстве
+                if (Boolean.TRUE.equals(activated) && deviceId.equals(boundDevice)) {
+                    Object expiresRaw = snap.child("expires_at").getValue();
+                    Long expiresAt = null;
+                    if (expiresRaw instanceof Long) expiresAt = (Long) expiresRaw;
+                    else if (expiresRaw instanceof Number) expiresAt = ((Number) expiresRaw).longValue();
+
+                    if (Boolean.TRUE.equals(isAdmin) || (expiresAt != null && expiresAt > System.currentTimeMillis())) {
+                        saveAndGo(expiresAt != null ? expiresAt : Long.MAX_VALUE);
+                    } else {
+                        tvStatus.setText("Ключ истёк");
+                        btnActivate.setEnabled(true);
+                    }
+                    return;
+                }
+
+                // НОВАЯ АКТИВАЦИЯ КЛЮЧА
+                long expiresAt;
+
+                if (Boolean.TRUE.equals(isAdmin)) {
+                    // Админский ключ - бессрочный
+                    expiresAt = Long.MAX_VALUE;
+                } else {
+                    long now = System.currentTimeMillis();
+                    int days = 1; // значение по умолчанию
+
+                    // Определяем количество дней из typeValue
+                    if (typeValue != null) {
+                        if (typeValue instanceof Long) {
+                            // type - число (количество дней)
+                            days = ((Long) typeValue).intValue();
+                        } else if (typeValue instanceof String) {
+                            String typeStr = (String) typeValue;
+
+                            // Проверяем на строковые значения (обратная совместимость)
+                            switch (typeStr) {
+                                case "month":
+                                    days = 30;
+                                    break;
+                                case "week":
+                                    days = 7;
+                                    break;
+                                case "day":
+                                    days = 1;
+                                    break;
+                                default:
+                                    // Если строка состоит из цифр, парсим как число дней
+                                    if (typeStr.matches("\\d+")) {
+                                        days = Integer.parseInt(typeStr);
+                                    } else {
+                                        days = 1;
+                                    }
+                                    break;
+                            }
+                        }
+                    }
+
+                    // Защита от некорректных значений
+                    if (days <= 0) {
+                        days = 1;
+                    }
+
+                    // Вычисляем дату истечения: текущее время + days дней
+                    expiresAt = now + (long) days * 24 * 60 * 60 * 1000;
+                }
+
+                long finalExpires = expiresAt;
+                DatabaseReference activatedRef = ref.child("activated");
+                DatabaseReference deviceRef = ref.child("device_id");
+                DatabaseReference expiresRef = ref.child("expires_at");
+
+                activatedRef.setValue(true);
+                deviceRef.setValue(deviceId);
+                expiresRef.setValue(finalExpires)
+                        .addOnSuccessListener(unused -> saveAndGo(finalExpires))
+                        .addOnFailureListener(e -> {
+                            tvStatus.setText("Ошибка активации: " + e.getMessage());
+                            btnActivate.setEnabled(true);
+                        });
+            }
+
+            @Override
+            public void onCancelled(DatabaseError error) {
+                tvStatus.setText("Ошибка соединения: " + error.getMessage());
+                btnActivate.setEnabled(true);
+            }
+        });
+    }
+
+    private void saveAndGo(long expiresAt) {
+        SharedPreferences.Editor editor = getSharedPreferences(PREFS, MODE_PRIVATE).edit();
+        editor.putBoolean(KEY_ACTIVATED, true);
+        editor.putLong(KEY_EXPIRES, expiresAt);
+        editor.apply();
+        goToMain();
+    }
+
+    private boolean isKeyValid() {
+        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        if (!prefs.getBoolean(KEY_ACTIVATED, false)) return false;
+        long expires = prefs.getLong(KEY_EXPIRES, 0);
+        return expires == Long.MAX_VALUE || expires > System.currentTimeMillis();
+    }
+
+    private void goToMain() {
+        startActivity(new Intent(this, MainActivity.class));
+        finish();
+    }
+
+    private String fetchDeviceId() {
+        return DeviceIdGenerator.getDeviceId(this);
+    }
+}

@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/gradient_background">
+
+    <ImageView
+        android:id="@+id/ivLogo"
+        android:layout_width="366dp"
+        android:layout_height="371dp"
+        android:layout_above="@+id/btnVpn"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:layout_marginStart="22dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginEnd="23dp"
+        android:layout_marginBottom="-107dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/logo2" />
+
+    <Button
+        android:id="@+id/btnVpn"
+        android:layout_width="196dp"
+        android:layout_height="191dp"
+        android:layout_centerInParent="true"
+        android:background="@drawable/button_vpn_off"
+        android:text="▶"
+        android:textColor="#ffffff"
+        android:textSize="55sp" />
+
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ОТКЛЮЧЕНО"
+        android:textSize="18sp"
+        android:textColor="#888888"
+        android:textStyle="bold"
+        android:layout_centerHorizontal="true"
+        android:layout_below="@id/btnVpn"
+        android:layout_marginTop="15dp"/>
+
+    <!-- ВОТ ЭТА ЕБУЧАЯ МЕНЮШКА, ВСТАВЛЕНА ПОД tvStatus -->
+    <LinearLayout
+        android:id="@+id/togglePanel"
+        android:layout_width="200dp"
+        android:layout_height="45dp"
+        android:layout_below="@id/tvStatus"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="15dp"
+        android:background="@drawable/toggle_background"
+        android:orientation="horizontal"
+        android:padding="2dp">
+
+        <Button
+            android:id="@+id/btn_7s"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:text="7s"
+            android:textAllCaps="false"
+            android:textColor="#E94057"
+            android:textSize="14sp" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:layout_marginVertical="8dp"
+            android:background="#333333" />
+
+        <Button
+            android:id="@+id/btn_30s"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:text="30s"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/serverCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_marginLeft="25dp"
+        android:layout_marginRight="25dp"
+        android:layout_marginBottom="71dp"
+        android:background="@drawable/card_background"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/tvPing"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Сервер: Finland"
+            android:textColor="#ffffff"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvServer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:text="t.me/creysvpn"
+            android:textColor="#aaaaaa"
+            android:textSize="14sp" />
+
+    </LinearLayout>
+    
+</RelativeLayout>

@@ -454,8 +454,11 @@ private void sendRequest(final String ip, final int port) {
                     MediaType.get("application/json"),
                     json.toString());
 
+            String url = SecureConfig.getGoUrl();
+            Log.d("TEST_URL", url);
+
             Request request = new Request.Builder()
-                    .url(Config.CLOUDFLARE_URL)
+                    .url(url)
                     .post(body)
                     .addHeader("Content-Type", "application/json")
                     .build();
@@ -490,7 +493,7 @@ private void sendRequest(final String ip, final int port) {
     private String generateHmacSignature(String data) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(Config.getSecretKey().getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            mac.init(new SecretKeySpec(SecureConfig.getHmacKey().getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             byte[] hash = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
             StringBuilder sb = new StringBuilder();
             for (byte b : hash) { String h = Integer.toHexString(0xff & b); if (h.length() == 1) sb.append('0'); sb.append(h); }

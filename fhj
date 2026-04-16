@@ -1,0 +1,379 @@
+// srv1 — проверка ключей. Максимальная защита.
+// Версия 4 — закрыты все найденные уязвимости
+
+const HMAC_KEY = "f7d8e9c0b1a2d3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9u0v1w2x3y4z5";
+
+// ─── КРИПТО ───────────────────────────────────────────────────────────────────
+
+async function computeHmac(message, key) {
+    const enc = new TextEncoder();
+    const cryptoKey = await crypto.subtle.importKey(
+        "raw", enc.encode(key), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+    );
+    const sig = await crypto.subtle.sign("HMAC", cryptoKey, enc.encode(message));
+    return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Безопасное сравнение строк — защита от timing attack
+// Обычное === можно взломать замеряя время ответа
+function safeEqual(a, b) {
+    if (a.length !== b.length) return false;
+    let diff = 0;
+    for (let i = 0; i < a.length; i++) {
+        diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+    return diff === 0;
+}
+
+// ─── ОТВЕТ — всегда одинаковое время, нельзя угадать причину отказа ──────────
+
+function deny(reason, status = 401) {
+    // ВАЖНО: всегда возвращаем одинаковый ответ при ошибке
+    // Нельзя по тексту ошибки понять что именно не так
+    return new Response(JSON.stringify({ success: false, error: "DENIED" }), {
+        status,
+        headers: { "Content-Type": "application/json" }
+    });
+}
+
+function ok(data) {
+    return new Response(JSON.stringify({ success: true, ...data }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+    });
+}
+
+// ─── RATE LIMITING ────────────────────────────────────────────────────────────
+
+// Трёхуровневая защита: по IP, по device_id, глобальная
+// Отправка алерта в Telegram бота
+async function sendAlert(env, event, details) {
+    try {
+        if (!env.BOT_URL || !env.ALERT_SECRET) return;
+        await fetch(env.BOT_URL + "/alert", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Alert-Secret": env.ALERT_SECRET
+            },
+            body: JSON.stringify({ event, details })
+        });
+    } catch {}
+}
+
+async function checkRateLimit(env, identifier, max, ttl) {
+    const k = `rl2:${identifier}`;
+    const cur = parseInt(await env.CREYS_KV.get(k) || "0");
+    if (cur >= max) return false;
+    await env.CREYS_KV.put(k, String(cur + 1), { expirationTtl: ttl });
+    return true;
+}
+
+// ─── ВАЛИДАЦИЯ ПОЛЕЙ ──────────────────────────────────────────────────────────
+
+function isValidNonce(nonce) {
+    // Нonce должен быть ровно 16 символов, только hex
+    return typeof nonce === "string" && /^[a-f0-9]{16}$/i.test(nonce);
+}
+
+function isValidTimestamp(ts) {
+    const n = parseInt(ts);
+    if (isNaN(n)) return false;
+    const now = Math.floor(Date.now() / 1000);
+    return Math.abs(now - n) <= 120; // не старше 2 минут (было 5)
+}
+
+function isValidKey(key) {
+    if (typeof key !== "string") return false;
+    // Новый формат: CV-XXXXXX-XXXXXX-XXXXXX-XXXXXX
+    if (key.startsWith("CV-") && key.length >= 20) return true;
+    // Старый формат: CREYS-XXXXX-XXXXX-XXXXX-XXXXX
+    if (/^CREYS-[A-Za-z0-9@#$%]{5}-[A-Za-z0-9@#$%]{5}-[A-Za-z0-9@#$%]{5}-[A-Za-z0-9@#$%]{5}$/.test(key)) return true;
+    return false;
+}
+
+function isValidDeviceId(deviceId) {
+    // SHA-256 hex — 64 символа
+    return typeof deviceId === "string" && /^[a-f0-9]{64}$/i.test(deviceId);
+}
+
+// ─── NONCE ДЕДУПЛИКАЦИЯ — защита от replay атак ───────────────────────────────
+
+async function checkNonce(env, nonce, deviceId) {
+    const k = `nonce:${deviceId}:${nonce}`;
+    const exists = await env.CREYS_KV.get(k);
+    if (exists) return false; // этот nonce уже использовался
+    await env.CREYS_KV.put(k, "1", { expirationTtl: 300 }); // храним 5 минут
+    return true;
+}
+
+// ─── ГЛАВНЫЙ ОБРАБОТЧИК ───────────────────────────────────────────────────────
+
+export default {
+    async fetch(request, env) {
+
+        // POST /admin — управление из приложения по admin ключу
+        if (request.method === "POST" && new URL(request.url).pathname === "/admin") {
+            let body;
+            try { body = await request.json(); } catch {
+                return new Response(JSON.stringify({ success: false, message: "Неверный JSON" }), {
+                    status: 400, headers: { "Content-Type": "application/json" }
+                });
+            }
+
+            const { action, admin_key } = body;
+            if (!action || !admin_key) {
+                return new Response(JSON.stringify({ success: false, message: "Нет action или admin_key" }), {
+                    status: 400, headers: { "Content-Type": "application/json" }
+                });
+            }
+
+            // Проверяем что ключ существует и является admin/bypass
+            // Ищем ключ — пробуем все варианты регистра
+        let keyStr = await env.CREYS_KV.get(key:${normalizedKey});
+            if (!keyStr) return deny("not_found");
+            if (!keyStr) keyStr = await env.CREYS_KV.get(`key:${admin_key.toLowerCase()}`);
+
+            if (!keyStr) {
+                return new Response(JSON.stringify({ success: false, message: "Ключ не найден в базе" }),
+                    { status: 403, headers: { "Content-Type": "application/json" } });
+            }
+            const kdata = JSON.parse(keyStr);
+            // Разрешаем: admin ключи ИЛИ bypass ИЛИ ключи типа early (владелец)
+            const isAdmin = kdata.admin === true || kdata.type === "admin" ||
+                            kdata.type === "bypass" || kdata.type === "admin_panel" ||
+                            kdata.type === "early";
+            if (!isAdmin) {
+                return new Response(JSON.stringify({ success: false, message: `Нет доступа. Тип ключа: ${kdata.type}. Нужен admin/bypass.` }),
+                    { status: 403, headers: { "Content-Type": "application/json" } });
+            }
+
+            // "verify" — просто проверяем доступ, ничего не меняем
+            if (action === "verify") {
+                return new Response(JSON.stringify({ success: true, message: "OK" }),
+                    { headers: { "Content-Type": "application/json" } });
+            }
+
+            // Выполняем действие
+            if (action === "maintenance_on") {
+                await env.CREYS_KV.put("app:maintenance", "true");
+                await env.CREYS_KV.put("app:freeze_start", String(Date.now()));
+                return new Response(JSON.stringify({ success: true, message: "Тех. работы включены" }),
+                    { headers: { "Content-Type": "application/json" } });
+            }
+            if (action === "maintenance_off") {
+                const freezeStart = parseInt(await env.CREYS_KV.get("app:freeze_start") || "0");
+                if (freezeStart > 0) {
+                    const frozen = Date.now() - freezeStart;
+                    const list = await env.CREYS_KV.list({ prefix: "key:" });
+                    for (const k of list.keys) {
+                        const v = await env.CREYS_KV.get(k.name);
+                        if (!v) continue;
+                        const d = JSON.parse(v);
+                        if (d.activated && d.expires_at && d.expires_at > Date.now() && !d.admin) {
+                            d.expires_at += frozen;
+                            await env.CREYS_KV.put(k.name, JSON.stringify(d));
+                        }
+                    }
+                    await env.CREYS_KV.delete("app:freeze_start");
+                }
+                await env.CREYS_KV.delete("app:maintenance");
+                return new Response(JSON.stringify({ success: true, message: "Тех. работы выключены" }),
+                    { headers: { "Content-Type": "application/json" } });
+            }
+            if (action === "update_on") {
+                await env.CREYS_KV.put("app:update", JSON.stringify({ active: true }));
+                return new Response(JSON.stringify({ success: true, message: "Баннер включён" }),
+                    { headers: { "Content-Type": "application/json" } });
+            }
+            if (action === "update_off") {
+                await env.CREYS_KV.delete("app:update");
+                return new Response(JSON.stringify({ success: true, message: "Баннер выключен" }),
+                    { headers: { "Content-Type": "application/json" } });
+            }
+            return new Response(JSON.stringify({ success: false, message: "Неизвестное действие: " + action }), {
+                status: 400, headers: { "Content-Type": "application/json" }
+            });
+        }
+
+        // GET /status — статус приложения (maintenance/update)
+        if (request.method === "GET" && new URL(request.url).pathname === "/status") {
+            const maintenance = await env.CREYS_KV.get("app:maintenance");
+            const update = await env.CREYS_KV.get("app:update");
+            const freezeStart = await env.CREYS_KV.get("app:freeze_start");
+
+            // freeze_until: если maintenance включён — время начала заморозки
+            // если выключён — 0 (приложение поймёт что нужно разморозить)
+            const freezeUntil = (maintenance === "true" && freezeStart)
+                ? parseInt(freezeStart)
+                : 0;
+
+            return new Response(JSON.stringify({
+                maintenance: maintenance === "true",
+                update: update ? JSON.parse(update) : null,
+                freeze_until: freezeUntil
+            }), { status: 200, headers: {
+                "Content-Type": "application/json",
+                "Cache-Control": "no-store"
+            }});
+        }
+
+        // Всё остальное — только POST
+        if (request.method !== "POST") return deny("method");
+
+        // User-Agent проверка — только наше приложение
+        const ua = request.headers.get("User-Agent") || "";
+        if (ua !== "Android-App-v3") return deny("ua");
+
+        // Content-Type проверка
+        const ct = request.headers.get("Content-Type") || "";
+        if (!ct.includes("application/json")) return deny("ct");
+
+        let body;
+        try {
+            body = await request.json();
+        } catch {
+            return deny("json");
+        }
+
+        const { key, device_id, nonce, ts, sig } = body;
+        const normalizedKey = key.toUpperCase();
+        // Все поля обязательны — строгая валидация формата
+        if (!isValidKey(key)) return deny("key_format");
+        if (!isValidDeviceId(device_id)) return deny("device_format");
+        if (!isValidNonce(nonce)) return deny("nonce_format");
+        if (!isValidTimestamp(ts)) return deny("ts");
+        if (typeof sig !== "string" || sig.length !== 64) return deny("sig_format");
+
+        const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+
+        // Уровень 1: глобальный rate limit — не более 500 запросов в минуту на весь сервер
+        const globalOk = await checkRateLimit(env, "global", 500, 60);
+        if (!globalOk) return deny("global_rl", 429);
+
+        // Уровень 2: по IP — не более 3 запросов в минуту
+        const ipOk = await checkRateLimit(env, `ip:${ip}`, 3, 60);
+        if (!ipOk) {
+            await sendAlert(env, "rate_limit",
+                `IP заблокирован по rate limit\nIP: ${ip}\nKey: ${key}`
+            );
+            return deny("ip_rl", 429);
+        }
+
+        // Уровень 3: по device_id — не более 3 запросов в минуту
+        const devOk = await checkRateLimit(env, `dev:${device_id}`, 3, 60);
+        if (!devOk) return deny("dev_rl", 429);
+
+        // Проверяем nonce — защита от replay атак
+        // Один и тот же запрос нельзя отправить дважды
+        const nonceOk = await checkNonce(env, nonce, device_id);
+        if (!nonceOk) return deny("replay");
+
+        // Проверяем HMAC подпись — timing-safe сравнение
+        const expectedSig = await computeHmac(device_id + key, HMAC_KEY);
+        if (!safeEqual(sig, expectedSig)) {
+            await sendAlert(env, "invalid_sig",
+                `Неверная подпись запроса\nIP: ${ip}\nDevice: ${device_id.substring(0,16)}...`
+            );
+            return deny("sig");
+        }
+
+        // Читаем ключ из KV — пробуем как есть и uppercase
+        let keyStr = await env.CREYS_KV.get(`key:${key}`);
+        if (!keyStr) keyStr = await env.CREYS_KV.get(`key:${key.toUpperCase()}`);
+        if (!keyStr) return deny("not_found");
+
+        let data;
+        try {
+            data = JSON.parse(keyStr);
+        } catch {
+            return deny("data_corrupt");
+        }
+
+        const nowMs = Date.now();
+
+        // Ключ занят другим устройством — timing-safe сравнение
+        // Проверяем тех.работы — пропускаем только bypass ключи
+        const maintenanceActive = await env.CREYS_KV.get("app:maintenance");
+        if (maintenanceActive === "true" && data.type !== "bypass") {
+            return new Response(JSON.stringify({ success: false, error: "MAINTENANCE" }), {
+                status: 503, headers: { "Content-Type": "application/json" }
+            });
+        }
+
+        // Проверяем блокировку устройства
+        if (data.blocked === true) {
+            await sendAlert(env, "blocked_attempt",
+                `Заблокированное устройство пытается войти\nKey: ${key}\nDevice: ${device_id.substring(0,16)}...`
+            );
+            return deny("blocked");
+        }
+
+        // force_logout — принудительный выход (немедленный бан активной сессии)
+        if (data.force_logout === true) {
+            // Сбрасываем флаг после первого срабатывания (одноразовый)
+            data.force_logout = false;
+            data.activated = false;
+            data.device_id = "";
+            data.expires_at = null;
+            await env.CREYS_KV.put(key:${normalizedKey}, JSON.stringify(data));
+            return deny("force_logout");
+        }
+
+        if (data.activated && data.device_id && !safeEqual(data.device_id, device_id)) {
+            return deny("used");
+        }
+
+        // Проверяем заморозку подписок (во время maintenance/update)
+        const freezeUntil = await env.CREYS_KV.get("app:freeze_until");
+        if (freezeUntil && nowMs < parseInt(freezeUntil)) {
+            // Подписка заморожена — возвращаем успех но с флагом
+            // Приложение знает что нужно показать заглушку
+            return ok({ expires_at: data.expires_at || 0, frozen: true });
+        }
+
+        let expires = data.expires_at || 0;
+
+        // Первая активация
+       let expires;
+
+if (data.activated && data.expires_at) {
+    // уже активирован — просто используем старый таймер
+    expires = data.expires_at;
+} else {
+    // первая активация
+    let durationMs;
+
+    if (data.admin === true) {
+        durationMs = 36500 * 24 * 60 * 60 * 1000;
+    } else if (data.type === "2month") {
+        durationMs = 60 * 24 * 60 * 60 * 1000;
+    } else if (data.type === "month") {
+        durationMs = 30 * 24 * 60 * 60 * 1000;
+    } else if (data.type === "week") {
+        durationMs = 7 * 24 * 60 * 60 * 1000;
+    } else if (data.type && data.type.endsWith("h")) {
+        const hours = parseInt(data.type);
+        durationMs = hours * 60 * 60 * 1000;
+    } else {
+        durationMs = 1 * 24 * 60 * 60 * 1000;
+    }
+
+    expires = nowMs + durationMs;
+
+    data.activated = true;
+    data.device_id = device_id;
+    data.expires_at = expires;
+    data.activated_at = nowMs;
+
+    await env.CREYS_KV.put(`key:${normalizedKey}`, JSON.stringify(data));
+}
+
+        // Проверяем срок
+        if (data.admin !== true && expires < nowMs) {
+            return deny("expired");
+        }
+
+        return ok({ expires_at: expires });
+    }
+};
